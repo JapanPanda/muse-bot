@@ -21,8 +21,6 @@ class SpotifyApiUtil {
         this.renewToken();
     }
 
-    // TODO isrc for guaranteed match?
-
     public async getSongsFromUrl(url: string): Promise<Song | Array<Song>> {
         // this._client.
         const spotifyObject = parse(url);
@@ -69,9 +67,10 @@ class SpotifyApiUtil {
                 artist: artist,
                 duration: track.duration_ms / 1000,
                 imageUrl: imageUrl,
+                isrc: track.external_ids?.isrc,
                 source: SongSource.SPOTIFY,
                 title: track.name,
-                url: track.uri,
+                url: track.external_urls?.spotify,
             };
         } catch (e) {
             Logger.warn("Encountered error when getting track: %O", e);
@@ -88,10 +87,7 @@ class SpotifyApiUtil {
             let allTracks: Array<any> = [];
             do {
                 const playlistTracksResponse = (await this._client.getPlaylistTracks(id, { limit, offset })).body;
-                console.log(playlistTracksResponse.items);
-                console.log("roar");
                 allTracks = allTracks.concat(playlistTracksResponse.items);
-                console.log(allTracks);
                 next = playlistTracksResponse.next;
                 offset += limit;
             } while (next);
@@ -110,13 +106,15 @@ class SpotifyApiUtil {
                     // TODO figure out if there's a way to get artist image
                     iconUrl: imageUrl,
                 };
+
                 return {
                     artist: artist,
                     duration: track.duration_ms / 1000,
                     imageUrl: imageUrl,
+                    isrc: track.external_ids?.isrc,
                     source: SongSource.SPOTIFY,
                     title: track.name,
-                    url: track.uri,
+                    url: track.external_urls?.spotify,
                 };
             });
         } catch (e) {

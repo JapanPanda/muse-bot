@@ -83,19 +83,28 @@ export class AudioManager {
             return;
         }
 
+        console.log(this.currentSong);
+
         const node = MuseBotClient.shoukaku.getNode();
         let query;
         if (nextSong.source === SongSource.YOUTUBE) {
             query = nextSong.url;
         } else if (nextSong.source === SongSource.SPOTIFY) {
-            // TODO duration matching?
-            // TODO artist in there too for non-unique titlesgi
-            query = `ytsearch:${nextSong.title}`;
+            if (nextSong.isrc) {
+                query = `ytsearch:"${nextSong.isrc}"`;
+            } else {
+                query = `ytsearch:${nextSong.artist} ${nextSong.title}`;
+            }
         }
 
         const results = await node.rest.resolve(query);
         let trackMetadata = results.tracks.shift();
-        this._player.playTrack({ track: trackMetadata.track });
+
+        // TODO error handling for empty results/track
+
+        await this._player.playTrack({ track: trackMetadata.track });
+        // TODO make this a guild
+        await this._player.setVolume(0.5);
     }
 
     public skipSongs(numSkip: number): Array<QueuedSong> {

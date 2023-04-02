@@ -72,7 +72,7 @@ class PlayCommand extends BotCommand {
     get slashCommand(): SlashCommandBuilder {
         const command = super.slashCommand
             .addStringOption(option =>
-                option.setName("query").setDescription("Enter a search query or url. Supported links: youtube").setRequired(true),
+                option.setName("query").setDescription("Enter a search query or url. Supported links: Youtube, Spotify").setRequired(true),
             )
             .addIntegerOption(option =>
                 option.setName("position").setDescription("Which position you want to insert the song. 1 is the front of the queue").setMinValue(1),

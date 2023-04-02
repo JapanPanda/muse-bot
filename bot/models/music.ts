@@ -8,6 +8,7 @@ export interface Song {
     artist: Artist;
     duration: number;
     imageUrl: string;
+    isrc?: string;
     source: SongSource;
     title: string;
     url: string;
