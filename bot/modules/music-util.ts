@@ -66,7 +66,7 @@ const fetchSongsFromYoutubePlaylistUrl = async (url: string): Promise<Array<Song
 };
 
 const fetchSongFromYoutubeVideoUrl = async (url: string): Promise<Song> => {
-    const videoInfo = await ytdl.getInfo(url);
+    const videoInfo = await ytdl.getBasicInfo(url);
 
     // we pop to get the largest resolution for our finest users' pleasure
     const artistThumbnail = videoInfo.videoDetails.author?.thumbnails?.pop()?.url;
