@@ -1,4 +1,6 @@
-import "dotenv/config";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 export interface MuseBotConfig {
     adminUserIds: Array<string>;
