@@ -10,11 +10,11 @@ export const enum MUSE_COLORS {
 
 export const buildSongEmbed = (song: QueuedSong): EmbedBuilder => {
     return new EmbedBuilder()
-        .setAuthor({ name: song.artist.artistName, iconURL: song.artist.iconUrl, url: song.artist.artistUrl })
+        .setAuthor({ name: song.artist.artistName, url: song.artist.artistUrl })
+        .setThumbnail(song.artist.iconUrl)
         .setImage(song.imageUrl)
         .addFields(
             { name: "Song Title", value: `[${song.title}](${song.url})` },
-            { name: "Artist", value: `[${song.artist.artistName}](${song.artist.artistUrl})` },
             { name: "Duration", value: formatSecondsToDurationString(song.duration), inline: true },
             { name: "Requested By", value: song.requester, inline: true },
         );

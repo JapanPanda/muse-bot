@@ -57,7 +57,7 @@ class PlayCommand extends BotCommand {
         let queuedSongString = queuedSongs
             .slice(0, 5)
             .map((song, i) => {
-                const durationString = formatSecondsToDurationString(duration);
+                const durationString = formatSecondsToDurationString(song.duration);
                 // a limit of 175 will help avoid the embed value character limit of 1024
                 return `**${i + 1}.** [${song.title}](${song.url}) (${durationString}) ${song.requester}`;
             })

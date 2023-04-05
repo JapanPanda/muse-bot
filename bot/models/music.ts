@@ -4,10 +4,12 @@ export interface Artist {
     artistName: string;
 }
 
+// TODO source data?
 export interface Song {
     artist: Artist;
     duration: number;
     imageUrl: string;
+    // isLive: boolean;
     isrc?: string;
     source: SongSource;
     title: string;

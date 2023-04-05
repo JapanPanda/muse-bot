@@ -39,12 +39,10 @@ class SpotifyApiUtil {
         }
 
         if (Artist.is(spotifyObject)) {
-            // TODO support artist objects
             return null;
         }
 
         if (Search.is(spotifyObject)) {
-            // TODO support Search objects
             return null;
         }
 
@@ -54,14 +52,16 @@ class SpotifyApiUtil {
     private async getTrack(id: string): Promise<Song> {
         try {
             const track = (await this._client.getTrack(id)).body;
+
+            const primaryArtist = track.artists[0];
             const imageUrl = track.album.images[0].url;
+            const artistImage = (await this._client.getArtist(primaryArtist.id)).body.images?.[0]?.url;
             const artistString = track.artists.map(artist => artist.name).join(", ");
             const artist = {
                 artistName: artistString,
                 // for sake of simplicity, the url will just be the first artist
                 artistUrl: track.artists[0].href,
-                // TODO figure out if there's a way to get artist image
-                iconUrl: imageUrl,
+                iconUrl: artistImage ?? imageUrl,
             };
             return {
                 artist: artist,
@@ -82,9 +82,8 @@ class SpotifyApiUtil {
         try {
             let limit = 50;
             let offset = 0;
-            // TODO figure out this stupid typescript thing
             let next;
-            let allTracks: Array<any> = [];
+            let allTracks: Array<SpotifyApi.PlaylistTrackObject> = [];
             do {
                 const playlistTracksResponse = (await this._client.getPlaylistTracks(id, { limit, offset })).body;
                 allTracks = allTracks.concat(playlistTracksResponse.items);
@@ -92,19 +91,39 @@ class SpotifyApiUtil {
                 offset += limit;
             } while (next);
 
-            console.log(allTracks.length);
+            let seenArtists: Set<string> = new Set();
+            allTracks.forEach(playlistTrack => {
+                const primaryArtist = playlistTrack.track.artists[0];
+                seenArtists.add(primaryArtist.id);
+            });
+
+            let artistIdToImageUrl: Record<string, string> = {};
+            const artistsArray = Array.from(seenArtists);
+
+            // spotify api limits to 50 per artists
+            let currentIndex = 0;
+            let pageSize = 50;
+            while (currentIndex <= artistsArray.length) {
+                const currentArtists = artistsArray.slice(currentIndex, currentIndex + pageSize);
+                const artistsResponse = (await this._client.getArtists(currentArtists)).body;
+                artistsResponse.artists.forEach(artist => {
+                    artistIdToImageUrl[artist.id] = artist.images?.[0]?.url;
+                });
+                currentIndex += pageSize;
+            }
+
             return allTracks.map(playlistTrack => {
                 const track = playlistTrack.track;
 
                 const imageUrl = track.album.images[0].url;
-                //@ts-ignore
+                const artistImage = artistIdToImageUrl[track.artists[0].id];
+
                 const artistString = track.artists.map(artist => artist.name).join(", ");
                 const artist = {
                     artistName: artistString,
                     // for sake of simplicity, the url will just be the first artist
                     artistUrl: track.artists[0].href,
-                    // TODO figure out if there's a way to get artist image
-                    iconUrl: imageUrl,
+                    iconUrl: artistImage ?? imageUrl,
                 };
 
                 return {

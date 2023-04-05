@@ -4,6 +4,7 @@ import { QueuedSong, SongSource } from "../models/music";
 import { MUSE_COLORS, buildSongEmbed } from "./message-util";
 import { MuseBotClient } from "./muse-bot";
 import { parseUrl } from "./music-util";
+import { EmbedBuilder } from "discord.js";
 
 export class AudioManager {
     private _currentSong: QueuedSong;
@@ -86,12 +87,15 @@ export class AudioManager {
         console.log(this.currentSong);
 
         const node = MuseBotClient.shoukaku.getNode();
+
         let query;
+        let isIsrcSearch = false;
         if (nextSong.source === SongSource.YOUTUBE) {
             query = nextSong.url;
         } else if (nextSong.source === SongSource.SPOTIFY) {
             if (nextSong.isrc) {
                 query = `ytsearch:"${nextSong.isrc}"`;
+                isIsrcSearch = true;
             } else {
                 query = `ytsearch:${nextSong.artist} ${nextSong.title}`;
             }
@@ -101,6 +105,27 @@ export class AudioManager {
         let trackMetadata = results.tracks.shift();
 
         // TODO error handling for empty results/track
+        if (trackMetadata == null) {
+            if (isIsrcSearch) {
+                // maybe the isrc was incorrect, so try again with with generic yt search
+                query = `ytsearch:${nextSong.artist.artistName} ${nextSong.title}`;
+                const results = await node.rest.resolve(query);
+                trackMetadata = results.tracks.shift();
+            }
+
+            if (trackMetadata == null) {
+                // if it's still null, then just skip and complain that we're skipping since we can't find it on youtube
+                const noSongFoundEmbed = new EmbedBuilder()
+                    .setColor(MUSE_COLORS.RED)
+                    .setTitle("Error")
+                    .setDescription(
+                        `We could not find the song [${nextSong.artist.artistName} - ${nextSong.title}](${nextSong.url}).\nSkipping to next song...`,
+                    );
+                MuseBotClient.sendMessageToChannelId({ embeds: [noSongFoundEmbed] }, this._messageChannelId);
+                this.playNextSong();
+                return;
+            }
+        }
 
         await this._player.playTrack({ track: trackMetadata.track });
         // TODO make this a guild

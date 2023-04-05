@@ -27,7 +27,7 @@ class QueueCommand extends BotCommand {
         const audioManager = MuseBotClient.getAudioManagerForGuild(guildId);
         // queue includes any currently playing songs
         const queue = audioManager?.queue;
-        if (audioManager.currentSong == null && !queue?.length) {
+        if (audioManager?.currentSong == null && !queue?.length) {
             return interaction.reply({ embeds: [this.getEmptyQueueEmbed()] });
         }
 
@@ -80,7 +80,10 @@ class QueueCommand extends BotCommand {
         // build the now playing field
         const currentSongTimeString = formatSecondsToDurationString(audioManager.currentSongTime);
         const currentSongDuration = formatSecondsToDurationString(currentlyPlayingSong.duration);
-        const nowPlayingString = `[${currentlyPlayingSong.title}](${currentlyPlayingSong.url})) ${currentlyPlayingSong.requester}`;
+
+        const nowPlayingString = `[${currentlyPlayingSong.artist.artistName}](${currentlyPlayingSong.artist.artistUrl}) - [${currentlyPlayingSong.title}](${currentlyPlayingSong.url})
+        Requested By: ${currentlyPlayingSong.requester}`;
+
         embed.addFields({ name: `Now Playing (${currentSongTimeString} / ${currentSongDuration})`, value: nowPlayingString });
 
         const queueSongField = this.getQueuedSongField(queuedSongs, page);
