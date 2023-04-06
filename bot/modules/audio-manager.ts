@@ -1,10 +1,10 @@
+import { EmbedBuilder } from "discord.js";
 import { Player } from "shoukaku";
 import { Logger } from "../config";
 import { QueuedSong, SongSource } from "../models/music";
 import { MUSE_COLORS, buildSongEmbed } from "./message-util";
 import { MuseBotClient } from "./muse-bot";
-import { parseUrl } from "./music-util";
-import { EmbedBuilder } from "discord.js";
+import { MUSIC_ERROR, parseUrl } from "./music-util";
 
 export class AudioManager {
     private _currentSong: QueuedSong;
@@ -53,6 +53,9 @@ export class AudioManager {
     public async fetchAndQueueSongs(url: string, requester: string, index?: number): Promise<Array<QueuedSong>> {
         const songOrSongs = await parseUrl(url);
         let songs = [].concat(songOrSongs);
+        if (songOrSongs == null || songs.length === 0) {
+            throw new Error(MUSIC_ERROR.NO_RESULTS);
+        }
         return this.queueSongs(songs, requester, index);
     }
 
@@ -97,14 +100,13 @@ export class AudioManager {
                 query = `ytsearch:"${nextSong.isrc}"`;
                 isIsrcSearch = true;
             } else {
-                query = `ytsearch:${nextSong.artist} ${nextSong.title}`;
+                query = `ytsearch:${nextSong.artist.artistName} ${nextSong.title}`;
             }
         }
 
         const results = await node.rest.resolve(query);
         let trackMetadata = results.tracks.shift();
 
-        // TODO error handling for empty results/track
         if (trackMetadata == null) {
             if (isIsrcSearch) {
                 // maybe the isrc was incorrect, so try again with with generic yt search

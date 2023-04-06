@@ -1,7 +1,7 @@
-import { Config, Logger } from "../config";
 import { CacheType, ChatInputCommandInteraction, Collection, REST, Routes, SlashCommandBuilder } from "discord.js";
 import fs from "fs";
 import path from "path";
+import { Config, Logger } from "../config";
 
 export abstract class BotCommand {
     public readonly description: string;
@@ -85,8 +85,12 @@ export class CommandManager {
         } catch (e: any) {
             Logger.error(`Failed executing command: ${interaction.commandName}`);
             Logger.error("Error found: %O", e);
-
-            interaction.reply("Something went wrong executing this command. Sorry!");
+            const errorMessage = "Something went wrong executing this command. Sorry, our top ~~slave~~ dev is on it.";
+            if (interaction.deferred) {
+                interaction.editReply(errorMessage);
+            } else {
+                interaction.reply(errorMessage);
+            }
         }
     }
 }

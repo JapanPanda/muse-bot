@@ -5,6 +5,7 @@ import ytsr from "ytsr";
 import ytpl from "ytpl";
 import { SpotifyApi } from "./spotify-api-util";
 
+// TODO VINCENT: should probably make a custom error class
 export const enum MUSIC_ERROR {
     UNSUPPORTED_URL_DOMAIN = "UNSUPPORTED_URL_DOMAIN",
     NO_RESULTS = "NO_RESULTS",
@@ -30,7 +31,7 @@ export const parseUrl = async (url: string): Promise<Song | Array<Song>> => {
     }
 
     Logger.warn(`User passed in an unsupported url domain=${url}`);
-    return Promise.reject(MUSIC_ERROR.UNSUPPORTED_URL_DOMAIN);
+    throw new Error(MUSIC_ERROR.UNSUPPORTED_URL_DOMAIN);
 };
 
 const isUrl = (url: string): boolean => {
@@ -44,7 +45,7 @@ const isUrl = (url: string): boolean => {
 
 const fetchSongsFromYoutubePlaylistUrl = async (url: string): Promise<Array<Song>> => {
     const playlist = await ytpl(url, { limit: Infinity });
-    return playlist.items.map(item => {
+    return playlist.items?.map(item => {
         // we pop to get the largest resolution for our finest users' pleasure
 
         const artist: Artist = {
@@ -113,10 +114,10 @@ const queryYoutubeForSearchTerm = async (queryString: string): Promise<Song> => 
             }
         }
 
-        throw new Error("No results found");
+        return null;
     } catch (e) {
-        Logger.warn(`Failed to query youtube for queryString=${queryString}`, e);
-        return Promise.reject(MUSIC_ERROR.NO_RESULTS);
+        Logger.warn(`Failed to query youtube for queryString=${queryString} %O`, e);
+        throw e;
     }
 };
 

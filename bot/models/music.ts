@@ -4,6 +4,7 @@ export interface Artist {
     artistName: string;
 }
 
+// TODO multiple artists?
 // TODO source data?
 export interface Song {
     artist: Artist;

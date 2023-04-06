@@ -3,6 +3,7 @@ import { Logger } from "../config";
 import { BotCommand, MUSE_COLORS, MuseBotClient, buildSongEmbed } from "../modules";
 import { formatSecondsToDurationString } from "../modules/message-util";
 import { QueuedSong } from "../models/music";
+import { MUSIC_ERROR } from "../modules/music-util";
 
 class PlayCommand extends BotCommand {
     public readonly description: string = "Play a song!";
@@ -30,22 +31,33 @@ class PlayCommand extends BotCommand {
 
         const index = position ?? audioManager.queue.length;
         const wasQueueEmpty = audioManager.queue.length === 0;
-        const queuedSongs = await audioManager.fetchAndQueueSongs(query, interaction.member.user.toString(), index);
+        try {
+            const queuedSongs = await audioManager.fetchAndQueueSongs(query, interaction.member.user.toString(), index);
 
-        console.timeEnd("play");
+            console.timeEnd("play");
 
-        if (queuedSongs.length > 1) {
-            // user queued a playlist
-            return interaction.editReply(this.buildPlaylistMessage(queuedSongs));
+            if (queuedSongs.length > 1) {
+                // user queued a playlist
+                return interaction.editReply(this.buildPlaylistMessage(queuedSongs));
+            }
+
+            // TODO: proper duration for livestreams
+
+            // user queued a single video (or a playlist with a single song perhaps)
+            const embedTitle = wasQueueEmpty ? "Now Playing" : "Queued Song";
+            const embedColor = wasQueueEmpty ? MUSE_COLORS.YELLOW : MUSE_COLORS.BLUE;
+            const queuedSongEmbed = buildSongEmbed(queuedSongs[0]).setColor(embedColor).setTitle(embedTitle);
+            return interaction.editReply({ embeds: [queuedSongEmbed] });
+        } catch (e: any) {
+            if (e?.message === MUSIC_ERROR.NO_RESULTS) {
+                return interaction.editReply("Our ninjas couldn't find any songs for this query, our humblest apologies.");
+            } else if (e?.message === MUSIC_ERROR.UNSUPPORTED_URL_DOMAIN) {
+                return interaction.editReply(
+                    "This link isn't currently supported. We only support Youtube playlist/video links, or Spotify track/playlist/album links.",
+                );
+            }
+            throw e;
         }
-
-        // TODO: proper duration for livestreams
-
-        // user queued a single video (or a playlist with a single song perhaps)
-        const embedTitle = wasQueueEmpty ? "Now Playing" : "Queued Song";
-        const embedColor = wasQueueEmpty ? MUSE_COLORS.YELLOW : MUSE_COLORS.BLUE;
-        const queuedSongEmbed = buildSongEmbed(queuedSongs[0]).setColor(embedColor).setTitle(embedTitle);
-        return interaction.editReply({ embeds: [queuedSongEmbed] });
     }
 
     private buildPlaylistMessage(queuedSongs: Array<QueuedSong>): BaseMessageOptions {

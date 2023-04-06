@@ -2,8 +2,7 @@ import SpotifyWebApi from "spotify-web-api-node";
 import { Config, Logger } from "../config";
 import { Song, SongSource } from "../models";
 import { Album, Artist, Playlist, Search, Track, parse } from "spotify-uri";
-
-/// <reference types="spotify-api" />
+import { MUSIC_ERROR } from "./music-util";
 
 class SpotifyApiUtil {
     private _clientId: string;
@@ -30,29 +29,19 @@ class SpotifyApiUtil {
         }
 
         if (Playlist.is(spotifyObject)) {
-            return this.getPlaylist(spotifyObject.id);
+            return this.getPlaylistTracks(spotifyObject.id);
         }
 
         if (Album.is(spotifyObject)) {
-            // TODO support album objects
-            return null;
+            return this.getAlbumTracks(spotifyObject.id);
         }
 
-        if (Artist.is(spotifyObject)) {
-            return null;
-        }
-
-        if (Search.is(spotifyObject)) {
-            return null;
-        }
-
-        return null;
+        throw new Error(MUSIC_ERROR.UNSUPPORTED_URL_DOMAIN);
     }
 
     private async getTrack(id: string): Promise<Song> {
         try {
             const track = (await this._client.getTrack(id)).body;
-
             const primaryArtist = track.artists[0];
             const imageUrl = track.album.images[0].url;
             const artistImage = (await this._client.getArtist(primaryArtist.id)).body.images?.[0]?.url;
@@ -78,7 +67,7 @@ class SpotifyApiUtil {
         }
     }
 
-    private async getPlaylist(id: string): Promise<Array<Song>> {
+    private async getPlaylistTracks(id: string): Promise<Array<Song>> {
         try {
             let limit = 50;
             let offset = 0;
@@ -122,7 +111,7 @@ class SpotifyApiUtil {
                 const artist = {
                     artistName: artistString,
                     // for sake of simplicity, the url will just be the first artist
-                    artistUrl: track.artists[0].href,
+                    artistUrl: track.artists[0].external_urls?.spotify,
                     iconUrl: artistImage ?? imageUrl,
                 };
 
@@ -131,6 +120,73 @@ class SpotifyApiUtil {
                     duration: track.duration_ms / 1000,
                     imageUrl: imageUrl,
                     isrc: track.external_ids?.isrc,
+                    source: SongSource.SPOTIFY,
+                    title: track.name,
+                    url: track.external_urls?.spotify,
+                };
+            });
+        } catch (e) {
+            Logger.warn("Encountered error when getting playlist: %O", e);
+            return null;
+        }
+    }
+
+    private async getAlbumTracks(id: string): Promise<Array<Song>> {
+        try {
+            const album = (await this._client.getAlbum(id)).body;
+            const trackImage = album.images[0].url;
+
+            let limit = 50;
+            let offset = 0;
+            let next;
+            let allTracks: Array<SpotifyApi.TrackObjectSimplified> = [];
+            do {
+                const albumTracksResponse = (await this._client.getAlbumTracks(id, { limit, offset })).body;
+                allTracks = allTracks.concat(albumTracksResponse.items);
+                next = albumTracksResponse.next;
+                offset += limit;
+            } while (next);
+
+            let seenArtists: Set<string> = new Set();
+            allTracks.forEach(albumTrack => {
+                const primaryArtist = albumTrack.artists[0];
+                seenArtists.add(primaryArtist.id);
+            });
+
+            let artistIdToImageUrl: Record<string, string> = {};
+            const artistsArray = Array.from(seenArtists);
+
+            // TODO could optimize this since album response already has the first 20 tracks
+            // spotify api limits to 50 per artists
+            let currentIndex = 0;
+            let pageSize = 50;
+            while (currentIndex <= artistsArray.length) {
+                const currentArtists = artistsArray.slice(currentIndex, currentIndex + pageSize);
+                const artistsResponse = (await this._client.getArtists(currentArtists)).body;
+                artistsResponse.artists.forEach(artist => {
+                    artistIdToImageUrl[artist.id] = artist.images?.[0]?.url;
+                });
+                currentIndex += pageSize;
+            }
+
+            return allTracks.map(track => {
+                const imageUrl = trackImage;
+                const artistImage = artistIdToImageUrl[track.artists[0].id];
+
+                const artistString = track.artists.map(artist => artist.name).join(", ");
+                const artist = {
+                    artistName: artistString,
+                    // for sake of simplicity, the url will just be the first artist
+                    artistUrl: track.artists[0].external_urls?.spotify,
+                    iconUrl: artistImage ?? imageUrl,
+                };
+
+                return {
+                    artist: artist,
+                    duration: track.duration_ms / 1000,
+                    imageUrl: imageUrl,
+                    // unfortunately album track does not have isrc data, we could do a separate full track query, but seems like overkill
+                    isrc: null,
                     source: SongSource.SPOTIFY,
                     title: track.name,
                     url: track.external_urls?.spotify,
