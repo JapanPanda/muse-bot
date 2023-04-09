@@ -25,15 +25,14 @@ class PlayCommand extends BotCommand {
 
         await interaction.deferReply();
 
-        const audioManager = MuseBotClient.getOrCreateAudioManagerForGuild(interaction.guildId);
-        await audioManager.joinVoiceChannel(voiceChannelId);
+        const audioManager = await MuseBotClient.getOrCreateAudioManagerForGuild(interaction.guildId);
         audioManager.messageChannelId = interaction.channelId;
 
         const index = position ?? audioManager.queue.length;
         const wasQueueEmpty = audioManager.queue.length === 0;
         try {
+            await audioManager.joinVoiceChannel(voiceChannelId);
             const queuedSongs = await audioManager.fetchAndQueueSongs(query, interaction.member.user.toString(), index);
-
             console.timeEnd("play");
 
             if (queuedSongs.length > 1) {
@@ -46,7 +45,7 @@ class PlayCommand extends BotCommand {
             // user queued a single video (or a playlist with a single song perhaps)
             const embedTitle = wasQueueEmpty ? "Now Playing" : "Queued Song";
             const embedColor = wasQueueEmpty ? MUSE_COLORS.YELLOW : MUSE_COLORS.BLUE;
-            const queuedSongEmbed = buildSongEmbed(queuedSongs[0]).setColor(embedColor).setTitle(embedTitle);
+            const queuedSongEmbed = buildSongEmbed(queuedSongs[0], interaction.guildId).setColor(embedColor).setTitle(embedTitle);
             return interaction.editReply({ embeds: [queuedSongEmbed] });
         } catch (e: any) {
             if (e?.message === MUSIC_ERROR.NO_RESULTS) {

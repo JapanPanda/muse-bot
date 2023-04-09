@@ -1,7 +1,7 @@
-import ytdl from "ytdl-core";
+import ytdl, { Author, relatedVideo } from "ytdl-core";
 import { Logger } from "../config";
 import { Artist, Song, SongSource } from "../models/music";
-import ytsr from "ytsr";
+import ytsr, { Video } from "ytsr";
 import ytpl from "ytpl";
 import { SpotifyApi } from "./spotify-api-util";
 
@@ -55,6 +55,7 @@ const fetchSongsFromYoutubePlaylistUrl = async (url: string): Promise<Array<Song
         };
 
         const song: Song = {
+            id: item.id,
             artist: artist,
             duration: item.durationSec,
             imageUrl: item.bestThumbnail.url,
@@ -78,6 +79,7 @@ const fetchSongFromYoutubeVideoUrl = async (url: string): Promise<Song> => {
     };
 
     const song: Song = {
+        id: videoInfo.vid,
         artist: artist,
         duration: parseInt(videoInfo.videoDetails.lengthSeconds),
         imageUrl: videoInfo.videoDetails.thumbnails.pop().url,
@@ -106,6 +108,7 @@ const queryYoutubeForSearchTerm = async (queryString: string): Promise<Song> => 
                 return {
                     artist,
                     duration,
+                    id: item.id,
                     imageUrl: item.bestThumbnail.url,
                     source: SongSource.YOUTUBE,
                     title: item.title,
@@ -132,4 +135,59 @@ const durationToSeconds = (value: string): number => {
     }
 
     return seconds;
+};
+
+export const getSongRecommendations = async (song: Song): Promise<Array<Song>> => {
+    if (song.source === SongSource.YOUTUBE) {
+        fetchAndConvertRelatedVideoToSongs(song.url);
+    } else {
+        const tracks = await SpotifyApi.getSongRecommendations(song);
+
+        // TODO: maybe a spotify -> yt function would be nice here
+        // fallback to youtube if spotify doesn't give any recommendations
+        if (tracks.length === 0) {
+            const searchQuery = song.isrc ?? `${song.artist} ${song.title}`;
+            const results = await ytsr(searchQuery, { limit: 10 });
+            const videoResults = results.items.filter(item => item.type === "video");
+            let video = videoResults?.[0] as Video;
+
+            // if we did an isrc search and got no videos, try searching by artist and title string
+            if (song.isrc != null && video == null) {
+                const results = await ytsr(`${song.artist} ${song.title}`, { limit: 10 });
+                const videoResults = results.items.filter(item => item.type === "video");
+                video = videoResults[0] as Video;
+            }
+
+            return fetchAndConvertRelatedVideoToSongs(video.url);
+        }
+
+        return tracks;
+    }
+};
+
+const fetchAndConvertRelatedVideoToSongs = async (url: string): Promise<Array<Song>> => {
+    const videoInfo = await ytdl.getBasicInfo(url);
+    const relatedVideos = videoInfo.related_videos.slice(0, 11);
+    return relatedVideos.map(relatedVideo => {
+        const author = relatedVideo.author as Author;
+
+        // we pop to get the largest resolution for our finest users' pleasure
+        const artistThumbnail = author?.thumbnails?.pop()?.url;
+        const artist: Artist = {
+            artistName: author.name,
+            artistUrl: author.channel_url,
+            iconUrl: artistThumbnail,
+        };
+
+        const song: Song = {
+            id: relatedVideo.id,
+            artist: artist,
+            duration: relatedVideo.length_seconds,
+            imageUrl: relatedVideo.thumbnails.pop().url,
+            source: SongSource.YOUTUBE,
+            title: relatedVideo.title,
+            url: `https://www.youtube.com/watch?v=${relatedVideo.id}`,
+        };
+        return song;
+    });
 };

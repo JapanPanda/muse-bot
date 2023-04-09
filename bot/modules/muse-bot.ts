@@ -11,9 +11,11 @@ import {
     VoiceState,
 } from "discord.js";
 import { Shoukaku, Connectors } from "shoukaku";
-import { Config, Logger, startRedis } from "../config";
+import { Config, Logger, Redis, startRedis } from "../config";
 import { AudioManager } from "./audio-manager";
 import { CommandManager } from "./command-manager";
+import { MuseSettings } from "../models/muse";
+import { RedisJSON } from "@redis/json/dist/commands";
 
 export class MuseBot {
     private _audioManagerForGuild: Record<string, AudioManager> = {};
@@ -29,7 +31,9 @@ export class MuseBot {
         });
         this.initShoukaku();
         this._commandManager = new CommandManager();
-        await this._commandManager.registerGuildCommands(Config.devGuildId);
+        for (const devGuildId of Config.devGuildIds) {
+            await this._commandManager.registerGuildCommands(devGuildId);
+        }
         this.registerDiscordListeners();
         await this.login();
     }
@@ -100,9 +104,10 @@ export class MuseBot {
         return Promise.reject(`Failed to send message to channelId=${channelId}`);
     }
 
-    public getOrCreateAudioManagerForGuild(guildId: string): AudioManager {
+    public async getOrCreateAudioManagerForGuild(guildId: string): Promise<AudioManager> {
         if (this._audioManagerForGuild[guildId] == null) {
-            this._audioManagerForGuild[guildId] = new AudioManager(guildId);
+            const settings = await this.getOrCreateMuseSettingsForGuild(guildId);
+            this._audioManagerForGuild[guildId] = new AudioManager(guildId, settings);
         }
 
         return this._audioManagerForGuild[guildId];
@@ -123,8 +128,49 @@ export class MuseBot {
         return (await this._client.guilds.fetch(guildId)).voiceAdapterCreator;
     }
 
+    public async getOrCreateMuseSettingsForGuild(guildId: string): Promise<MuseSettings> {
+        const key = this.getRedisKeyForGuildMuseSettings(guildId);
+        const settings = (await Redis.json.get(key)) as MuseSettings;
+
+        if (settings == null) {
+            const defaultSettings: MuseSettings = {
+                autoplay: false,
+                nightcore: false,
+                rotate: 0,
+                shuffle: false,
+                vaporwave: false,
+                volume: 0.5,
+            };
+            await this.updateMuseSettingsForGuild(guildId, defaultSettings);
+            return defaultSettings;
+        }
+
+        return settings;
+    }
+
+    public async mergeAndUpdateMuseSettingsForGuild(guildId: string, settings: MuseSettings): Promise<void> {
+        const currentSettings = await this.getOrCreateMuseSettingsForGuild(guildId);
+        const mergedSettings = { ...currentSettings, ...settings };
+        this.updateMuseSettingsForGuild(guildId, mergedSettings);
+    }
+
+    public async updateMuseSettingsForGuild(guildId: string, settings: MuseSettings): Promise<void> {
+        const key = this.getRedisKeyForGuildMuseSettings(guildId);
+        await Redis.json.set(key, "$", settings as RedisJSON);
+        const audioManager = await this.getOrCreateAudioManagerForGuild(guildId);
+        audioManager.settings = settings;
+    }
+
+    private getRedisKeyForGuildMuseSettings(guildId: string): string {
+        return `muse:settings/${guildId}`;
+    }
+
     get shoukaku(): Shoukaku {
         return this._shoukaku;
+    }
+
+    get selfString(): string {
+        return this._client.user.toString();
     }
 }
 

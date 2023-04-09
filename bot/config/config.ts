@@ -5,7 +5,7 @@ dotenv.config();
 export interface MuseBotConfig {
     adminUserIds: Array<string>;
     clientId: string;
-    devGuildId: string;
+    devGuildIds: Array<string>;
     discordToken: string;
     lavalinkUrl: string;
     lavalinkPassword: string;
@@ -18,7 +18,7 @@ export interface MuseBotConfig {
 export const Config: MuseBotConfig = {
     adminUserIds: process.env.ADMIN_IDS.split(","),
     clientId: process.env.CLIENT_ID,
-    devGuildId: process.env.DEV_GUILD_ID,
+    devGuildIds: process.env.DEV_GUILD_ID.split(","),
     discordToken: process.env.DISCORD_TOKEN,
     lavalinkUrl: process.env.LAVALINK_URL,
     lavalinkPassword: process.env.LAVALINK_PASSWORD,

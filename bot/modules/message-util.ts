@@ -1,5 +1,6 @@
 import { EmbedBuilder } from "discord.js";
 import { QueuedSong, Song } from "../models/music";
+import { MuseBotClient } from "./muse-bot";
 
 export const enum MUSE_COLORS {
     BLUE = "#398fc4",
@@ -8,7 +9,7 @@ export const enum MUSE_COLORS {
     YELLOW = "#dede33",
 }
 
-export const buildSongEmbed = (song: QueuedSong): EmbedBuilder => {
+export const buildSongEmbed = (song: QueuedSong, guildId: string): EmbedBuilder => {
     return new EmbedBuilder()
         .setAuthor({ name: song.artist.artistName, url: song.artist.artistUrl })
         .setThumbnail(song.artist.iconUrl)
@@ -17,7 +18,35 @@ export const buildSongEmbed = (song: QueuedSong): EmbedBuilder => {
             { name: "Song Title", value: `[${song.title}](${song.url})` },
             { name: "Duration", value: formatSecondsToDurationString(song.duration), inline: true },
             { name: "Requested By", value: song.requester, inline: true },
-        );
+        )
+        .setFooter({
+            text: buildSettingsFooter(guildId),
+        });
+};
+
+export const buildSettingsFooter = (guildId: string): string => {
+    const settings = MuseBotClient.getAudioManagerForGuild(guildId).settings;
+    let settingsString = [];
+    // TODO, probably a better way of doing this is to have a settings class that's built from the settings object
+    if (settings.autoplay) {
+        settingsString.push("Autoplay");
+    }
+    if (settings.nightcore) {
+        settingsString.push("Nightcore");
+    }
+    if (settings.rotate) {
+        settingsString.push(`Rotate ${settings.rotate}s`);
+    }
+    if (settings.shuffle) {
+        settingsString.push("Shuffle");
+    }
+    if (settings.vaporwave) {
+        settingsString.push("Vaporwave");
+    }
+    if (settings.volume != null && settings.volume !== 1) {
+        settingsString.push(`Volume ${settings.volume * 100}%`);
+    }
+    return settingsString.join(", ");
 };
 
 export const formatSecondsToDurationString = (seconds: number): string => {

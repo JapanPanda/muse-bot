@@ -12,7 +12,7 @@ import {
 } from "discord.js";
 import { QueuedSong } from "../models/music";
 import { BotCommand, MuseBotClient } from "../modules";
-import { MUSE_COLORS, formatSecondsToDurationString } from "../modules/message-util";
+import { MUSE_COLORS, buildSettingsFooter, formatSecondsToDurationString } from "../modules/message-util";
 import { Logger } from "../config";
 
 class QueueCommand extends BotCommand {
@@ -88,6 +88,8 @@ class QueueCommand extends BotCommand {
 
         const queueSongField = this.getQueuedSongField(queuedSongs, page);
         embed.addFields(queueSongField);
+
+        embed.setFooter({ text: buildSettingsFooter(guildId) });
 
         const message: BaseMessageOptions = { embeds: [embed] };
 

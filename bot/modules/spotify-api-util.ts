@@ -53,6 +53,7 @@ class SpotifyApiUtil {
                 iconUrl: artistImage ?? imageUrl,
             };
             return {
+                id: track.id,
                 artist: artist,
                 duration: track.duration_ms / 1000,
                 imageUrl: imageUrl,
@@ -116,6 +117,7 @@ class SpotifyApiUtil {
                 };
 
                 return {
+                    id: track.id,
                     artist: artist,
                     duration: track.duration_ms / 1000,
                     imageUrl: imageUrl,
@@ -182,6 +184,7 @@ class SpotifyApiUtil {
                 };
 
                 return {
+                    id: track.id,
                     artist: artist,
                     duration: track.duration_ms / 1000,
                     imageUrl: imageUrl,
@@ -196,6 +199,66 @@ class SpotifyApiUtil {
             Logger.warn("Encountered error when getting playlist: %O", e);
             return null;
         }
+    }
+
+    public async getSongRecommendations(song: Song): Promise<Array<Song>> {
+        const response = (
+            await this._client.getRecommendations({
+                limit: 11,
+                seed_tracks: song.id,
+            })
+        ).body;
+
+        const allTracks = response.tracks;
+        if (allTracks.length === 0) {
+            return [];
+        }
+
+        let seenArtists: Set<string> = new Set();
+        allTracks.forEach(albumTrack => {
+            const primaryArtist = albumTrack.artists[0];
+            seenArtists.add(primaryArtist.id);
+        });
+
+        let artistIdToImageUrl: Record<string, string> = {};
+        const artistsArray = Array.from(seenArtists);
+
+        // TODO could optimize this since album response already has the first 20 tracks
+        // spotify api limits to 50 per artists
+        let currentIndex = 0;
+        let pageSize = 50;
+        while (currentIndex <= artistsArray.length) {
+            const currentArtists = artistsArray.slice(currentIndex, currentIndex + pageSize);
+            const artistsResponse = (await this._client.getArtists(currentArtists)).body;
+            artistsResponse.artists.forEach(artist => {
+                artistIdToImageUrl[artist.id] = artist.images?.[0]?.url;
+            });
+            currentIndex += pageSize;
+        }
+
+        return allTracks.map(track => {
+            const imageUrl = track.album.images[0].url;
+            const artistImage = artistIdToImageUrl[track.artists[0].id];
+
+            const artistString = track.artists.map(artist => artist.name).join(", ");
+            const artist = {
+                artistName: artistString,
+                // for sake of simplicity, the url will just be the first artist
+                artistUrl: track.artists[0].external_urls?.spotify,
+                iconUrl: artistImage ?? imageUrl,
+            };
+
+            return {
+                id: track.id,
+                artist: artist,
+                duration: track.duration_ms / 1000,
+                imageUrl: imageUrl,
+                isrc: track.external_ids?.isrc,
+                source: SongSource.SPOTIFY,
+                title: track.name,
+                url: track.external_urls?.spotify,
+            };
+        });
     }
 
     private renewToken(): void {

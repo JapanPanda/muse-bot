@@ -7,6 +7,7 @@ export interface Artist {
 // TODO multiple artists?
 // TODO source data?
 export interface Song {
+    id: string;
     artist: Artist;
     duration: number;
     imageUrl: string;

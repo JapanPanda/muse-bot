@@ -39,7 +39,7 @@ export class CommandManager {
     }
 
     public async registerGuildCommands(guildId: string): Promise<unknown> {
-        Logger.info("Registering commands to dev guild");
+        Logger.info(`Registering commands to dev guild guildId=${guildId}`);
         const slashCommandData = this._commands.map(command => command.slashCommand.toJSON());
         const rest = new REST().setToken(Config.discordToken);
 
@@ -55,7 +55,7 @@ export class CommandManager {
         }
     }
 
-    public async registerGlobalCommands(): Promise<void> {
+    public async registerGlobalCommands(): Promise<unknown> {
         Logger.info("Registering commands to global application");
         const slashCommandData = this._commands.map(command => command.slashCommand.toJSON());
         const rest = new REST().setToken(Config.discordToken);
@@ -65,6 +65,7 @@ export class CommandManager {
                 body: slashCommandData,
             });
             Logger.info(`Successfully registered ${slashCommandData.length} application commands`);
+            return applicationGuildPromise;
         } catch (e) {
             Logger.error("Error registering application commands", e);
             throw new Error("Error registering application commands.");
@@ -91,6 +92,7 @@ export class CommandManager {
             } else {
                 interaction.reply(errorMessage);
             }
+            // TODO maybe handle disconnecting from guild if in voice chat?
         }
     }
 }

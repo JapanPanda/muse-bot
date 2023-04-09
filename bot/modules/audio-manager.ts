@@ -1,10 +1,11 @@
 import { EmbedBuilder } from "discord.js";
 import { Player } from "shoukaku";
 import { Logger } from "../config";
-import { QueuedSong, SongSource } from "../models/music";
+import { QueuedSong, Song, SongSource } from "../models/music";
 import { MUSE_COLORS, buildSongEmbed } from "./message-util";
 import { MuseBotClient } from "./muse-bot";
-import { MUSIC_ERROR, parseUrl } from "./music-util";
+import { MUSIC_ERROR, getSongRecommendations, parseUrl } from "./music-util";
+import { MuseSettings } from "../models/muse";
 
 export class AudioManager {
     private _currentSong: QueuedSong;
@@ -13,9 +14,11 @@ export class AudioManager {
     private _messageChannelId: string;
     private _player: Player;
     private _queue: Array<QueuedSong> = [];
+    private _settings: MuseSettings;
 
-    constructor(guildId: string) {
+    constructor(guildId: string, settings: MuseSettings) {
         this._guildId = guildId;
+        this._settings = settings;
     }
 
     public async joinVoiceChannel(voiceChannelId: string): Promise<void> {
@@ -28,7 +31,7 @@ export class AudioManager {
 
         this._player.on("start", () => {
             // announce that we're now playing a new song
-            const songEmbed = buildSongEmbed(this._currentSong).setColor(MUSE_COLORS.YELLOW).setTitle("Now Playing");
+            const songEmbed = buildSongEmbed(this._currentSong, this._guildId).setColor(MUSE_COLORS.YELLOW).setTitle("Now Playing");
             const message = { embeds: [songEmbed] };
             MuseBotClient.sendMessageToChannelId(message, this._messageChannelId);
         });
@@ -59,7 +62,7 @@ export class AudioManager {
         return this.queueSongs(songs, requester, index);
     }
 
-    public queueSongs(songs: Array<QueuedSong>, requester: string, index?: number): Array<QueuedSong> {
+    public queueSongs(songs: Array<Song>, requester: string, index?: number): Array<QueuedSong> {
         const queuedSongs = songs.map(song => ({
             guildId: this._guildId,
             requester: requester,
@@ -81,10 +84,16 @@ export class AudioManager {
 
     private async playNextSong(): Promise<void> {
         const nextSong = this._queue.shift();
+        const previousSong = this._currentSong;
         this._currentSong = nextSong;
+
         if (nextSong == null) {
-            // clean up no songs left
-            return;
+            if (!this._settings.autoplay) {
+                // clean up, no songs left
+                return;
+            }
+
+            return await this.addRecommendedSongsToQueue(previousSong);
         }
 
         console.log(this.currentSong);
@@ -129,9 +138,23 @@ export class AudioManager {
             }
         }
 
+        await this.applySettingsToPlayer();
         await this._player.playTrack({ track: trackMetadata.track });
-        // TODO make this a guild
-        await this._player.setVolume(0.5);
+    }
+
+    private async addRecommendedSongsToQueue(song: Song): Promise<void> {
+        const recommendedSongs = await getSongRecommendations(song);
+        this.queueSongs(recommendedSongs, MuseBotClient.selfString);
+    }
+
+    private applySettingsToPlayer(): Promise<void> {
+        if (!this._player) {
+            return;
+        }
+        let promises = [];
+        promises.push(this._player.setVolume(this._settings.volume));
+        promises.push(this._player.setRotation({ rotationHz: 1 / this._settings.rotate }));
+        return Promise.all(promises).then(() => {});
     }
 
     public skipSongs(numSkip: number): Array<QueuedSong> {
@@ -188,5 +211,14 @@ export class AudioManager {
 
     set messageChannelId(messageChannelId: string) {
         this._messageChannelId = messageChannelId;
+    }
+
+    get settings(): MuseSettings {
+        return this._settings;
+    }
+
+    set settings(settings: MuseSettings) {
+        this._settings = settings;
+        this.applySettingsToPlayer();
     }
 }
