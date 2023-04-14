@@ -10,7 +10,7 @@ class PlayCommand extends BotCommand {
     public readonly name: string = "play";
 
     public async execute(interaction: ChatInputCommandInteraction<CacheType>): Promise<any> {
-        console.time("play");
+        console.time("play" + interaction.id);
         const query = interaction.options.getString("query");
         const position = interaction.options.getInteger("position");
 
@@ -33,7 +33,7 @@ class PlayCommand extends BotCommand {
         try {
             await audioManager.joinVoiceChannel(voiceChannelId);
             const queuedSongs = await audioManager.fetchAndQueueSongs(query, interaction.member.user.toString(), index);
-            console.timeEnd("play");
+            console.timeEnd("play" + interaction.id);
 
             if (queuedSongs.length > 1) {
                 // user queued a playlist

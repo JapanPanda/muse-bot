@@ -17,15 +17,13 @@
         "dotenv": "^16.0.1",
         "ffmpeg-static": "^5.1.0",
         "libsodium-wrappers": "^0.7.10",
+        "play-dl": "^1.9.6",
         "redis": "^4.6.5",
         "redis-om": "^0.4.0-beta.3",
         "shoukaku": "^3.3.1",
         "spotify-uri": "^3.0.3",
         "spotify-web-api-node": "^5.0.2",
-        "winston": "^3.8.1",
-        "ytdl-core": "^4.11.3",
-        "ytpl": "^2.3.0",
-        "ytsr": "github:Yonle/node-ytsr"
+        "winston": "^3.8.1"
     },
     "name": "muse-bot",
     "description": "https://discord.com/api/oauth2/authorize?client_id=1010749788469338112&permissions=326420753472&scope=applications.commands%20bot",

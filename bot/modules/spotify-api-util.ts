@@ -21,7 +21,6 @@ class SpotifyApiUtil {
     }
 
     public async getSongsFromUrl(url: string): Promise<Song | Array<Song>> {
-        // this._client.
         const spotifyObject = parse(url);
 
         if (Track.is(spotifyObject)) {
