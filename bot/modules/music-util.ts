@@ -132,7 +132,7 @@ const durationToSeconds = (value: string): number => {
 
 export const getSongRecommendations = async (song: Song): Promise<Array<Song>> => {
     if (song.source === SongSource.YOUTUBE) {
-        fetchAndConvertRelatedVideoToSongs(song.url);
+        return fetchAndConvertRelatedVideoToSongs(song.url);
     } else {
         const tracks = await SpotifyApi.getSongRecommendations(song);
 

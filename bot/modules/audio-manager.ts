@@ -63,7 +63,7 @@ export class AudioManager {
     }
 
     public queueSongs(songs: Array<Song>, requester: string, index?: number): Array<QueuedSong> {
-        const queuedSongs = songs.map(song => ({
+        const queuedSongs = songs?.map(song => ({
             guildId: this._guildId,
             requester: requester,
             ...song,
@@ -88,7 +88,7 @@ export class AudioManager {
         this._currentSong = nextSong;
 
         if (nextSong == null) {
-            if (!this._settings.autoplay) {
+            if (!this._settings.autoplay || previousSong === null) {
                 // clean up, no songs left
                 return;
             }
