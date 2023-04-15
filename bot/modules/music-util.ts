@@ -1,4 +1,4 @@
-import playdl from "play-dl";
+import playdl from "@japanpanda/play-dl";
 import { Logger } from "../config";
 import { Artist, Song, SongSource } from "../models/music";
 import { SpotifyApi } from "./spotify-api-util";
